@@ -1,0 +1,413 @@
+## EJERCICIOS PL 1
+
+#EJERCICIOS 1 Y 2
+
+/*
+  Dia 1 - LED RGB
+  1) Fade blanco (aparición y desvanecimiento)
+  2) Secuencia de colores: rojo, verde, azul (2 s cada uno)
+*/
+
+void setup() {
+  // No hace falta inicializar el LED RGB
+}
+
+void loop() {
+#ifdef RGB_BUILTIN
+  // --- 1) Fade blanco ---
+  for (int brillo = 0; brillo <= 255; brillo++) {
+    rgbLedWrite(RGB_BUILTIN, brillo, brillo, brillo);
+    delay(10);
+  }
+  for (int brillo = 255; brillo >= 0; brillo--) {
+    rgbLedWrite(RGB_BUILTIN, brillo, brillo, brillo);
+    delay(10);
+  }
+  delay(500); // pequeña pausa
+
+  // --- 2) Secuencia R, G, B (2 s cada uno) ---
+  rgbLedWrite(RGB_BUILTIN, 255, 0, 0);   // Rojo
+  delay(2000);
+  rgbLedWrite(RGB_BUILTIN, 0, 255, 0);   // Verde
+  delay(2000);
+  rgbLedWrite(RGB_BUILTIN, 0, 0, 255);   // Azul
+  delay(2000);
+
+  // Opcional: apagado breve antes de repetir
+  rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
+  delay(500);
+#endif
+}
+
+# EJERCICIO 3
+
+/*
+  Día 1 - Ejercicio 3
+  Mostrar información básica del ESP32-S3 por Serial
+*/
+
+#include <WiFi.h>
+#include "esp_system.h"
+#include "esp_chip_info.h"
+#include "esp_mac.h"
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+
+  // --- Info de chip (núcleos, features) ---
+  esp_chip_info_t chip_info;
+  esp_chip_info(&chip_info);
+
+  Serial.println("== Informacion basica del ESP32-S3 ==");
+  Serial.printf("Nucleos (cores): %d\n", chip_info.cores);
+
+  // --- Modelo y revision ---
+  Serial.printf("Modelo de chip: %s\n", ESP.getChipModel());
+  Serial.printf("Revision de silicio: %d\n", ESP.getChipRevision());
+
+  // --- Version del SDK (ESP-IDF) ---
+  Serial.printf("Version SDK (ESP-IDF): %s\n", ESP.getSdkVersion());
+
+  // --- Memoria Flash ---
+  uint32_t flash_bytes = ESP.getFlashChipSize();
+  Serial.printf("Tamano de la memoria flash: %u bytes (%.2f MB)\n",
+                flash_bytes, flash_bytes / (1024.0 * 1024.0));
+
+  // --- MAC address (robusta: leer del eFuse directamente) ---
+  uint8_t mac_sta[6];
+  esp_read_mac(mac_sta, ESP_MAC_WIFI_STA);
+  Serial.printf("Direccion MAC (WiFi STA): %02X:%02X:%02X:%02X:%02X:%02X\n",
+                mac_sta[0], mac_sta[1], mac_sta[2],
+                mac_sta[3], mac_sta[4], mac_sta[5]);
+
+  // --- Extra ---
+  Serial.printf("CPU freq: %d MHz\n", getCpuFrequencyMhz());
+  Serial.println("=====================================\n");
+}
+
+void loop() {
+  // nada; la info se imprime una vez en setup()
+}
+############################################################################################ç
+
+### A partir de aqui los ejercicios combinan codigo en python y codigo en Arduino
+
+# EJERCICIO 4
+
+#include <Arduino.h>
+
+static uint32_t seq = 0;
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+  // Semilla simple para random; ESP32 ya tiene buena entropía, pero reforzamos:
+  randomSeed(esp_random());
+}
+
+void loop() {
+  // Genera número aleatorio en [0,1)
+  float val = (float)random(0, 10000) / 10000.0;
+
+  // Timestamp del dispositivo (ms desde arranque)
+  uint32_t dev_ts_ms = millis();
+
+  // Imprime una línea JSON (NDJSON)
+  Serial.print("{\"seq\":");
+  Serial.print(seq++);
+  Serial.print(",\"dev_ts_ms\":");
+  Serial.print(dev_ts_ms);
+  Serial.print(",\"val\":");
+  Serial.print(val, 4);
+  Serial.println("}");
+
+  delay(2000);
+}
+
+#parte de python 
+import json
+import serial
+from datetime import datetime, timezone
+
+# Ajusta este valor a tu puerto real (ej. "COM4" en Windows, "/dev/ttyUSB0" en Linux, "/dev/tty.usbserial-110" en macOS)
+PORT = "COM3"
+BAUD = 115200
+OUT_FILE = "lecturas.ndjson"   # un JSON por línea (NDJSON)
+
+with serial.Serial(PORT, BAUD, timeout=2) as ser, open(OUT_FILE, "a", encoding="utf-8") as f:
+    print(f"Leyendo de {PORT} @ {BAUD}. Guardando en {OUT_FILE} (Ctrl+C para salir).")
+    while True:
+        line = ser.readline()
+        if not line:
+            continue
+        try:
+            # decodifica la línea enviada por el ESP32
+            obj = json.loads(line.decode("utf-8").strip())
+        except Exception:
+            print("Línea no válida:", line)
+            continue
+
+        # añade timestamp del PC en formato ISO 8601
+        host_ts_iso = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        obj["host_ts_iso"] = host_ts_iso
+
+        # guarda en el fichero como una línea JSON
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        f.flush()
+
+        # también lo muestra en pantalla
+        print(obj)
+        
+        
+
+## EJERCICIO 5
+
+/*
+  Ejercicio 5 - Día 1
+  El ESP32-S3 escucha caracteres desde el puerto serie
+  y enciende el LED RGB en el color correspondiente:
+  'R' = rojo, 'G' = verde, 'B' = azul, 'W' = blanco
+*/
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+  Serial.println("Esperando comandos R/G/B/W por Serial...");
+}
+
+void loop() {
+#ifdef RGB_BUILTIN
+  if (Serial.available()) {
+    char c = Serial.read();
+
+    switch (c) {
+      case 'R':   // Rojo
+        rgbLedWrite(RGB_BUILTIN, 255, 0, 0);
+        Serial.println("LED -> ROJO");
+        break;
+
+      case 'G':   // Verde
+        rgbLedWrite(RGB_BUILTIN, 0, 255, 0);
+        Serial.println("LED -> VERDE");
+        break;
+
+      case 'B':   // Azul
+        rgbLedWrite(RGB_BUILTIN, 0, 0, 255);
+        Serial.println("LED -> AZUL");
+        break;
+
+      case 'W':   // Blanco
+        rgbLedWrite(RGB_BUILTIN, 255, 255, 255);
+        Serial.println("LED -> BLANCO");
+        break;
+
+      default:
+        Serial.print("Comando desconocido: ");
+        Serial.println(c);
+        break;
+    }
+  }
+#endif
+}
+# Parte de python
+
+import serial
+
+# Ajusta el puerto a tu caso:
+# - En Windows: "COM4", "COM5", etc.
+# - En Linux: "/dev/ttyUSB0" o "/dev/ttyACM0"
+# - En macOS: "/dev/tty.usbserial-xxxx"
+PORT = "COM3"
+BAUD = 115200
+
+with serial.Serial(PORT, BAUD, timeout=1) as ser:
+    print(f"Conectado a {PORT} @ {BAUD}. Escribe R, G, B o W (Ctrl+C para salir).")
+
+    while True:
+        cmd = input("Color (R/G/B/W): ").strip().upper()
+
+        if cmd not in ["R", "G", "B", "W"]:
+            print("Comando no válido. Usa R, G, B o W.")
+            continue
+
+        ser.write(cmd.encode("utf-8"))  # envía el carácter al ESP32
+        print(f"Enviado: {cmd}")
+        
+        
+        
+# EJERCICIO 6 (OPCIONAL)
+# sin parte de python 
+
+/*
+  Ejercicio 6 - Día 1 (robusto, sin lecturas periódicas)
+  BOOT (GPIO0) enciende LED blanco mientras esté pulsado.
+  Imprime solo en cambios de estado (pulsar/soltar).
+*/
+
+const int BTN_PIN = 0;  // BOOT/IO0 en la mayoría de ESP32-S3
+bool lastPressed = false;
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  pinMode(BTN_PIN, INPUT_PULLUP);  // suelto=HIGH, pulsado=LOW
+
+#ifdef RGB_BUILTIN
+  // Test rápido: parpadeo blanco para confirmar que el LED funciona
+  rgbLedWrite(RGB_BUILTIN, 32, 32, 32);
+  delay(150);
+  rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
+#endif
+
+  Serial.println("Pulsa BOOT para encender LED blanco.");
+}
+
+void loop() {
+#ifdef RGB_BUILTIN
+  bool pressed = (digitalRead(BTN_PIN) == LOW);  // LOW = pulsado
+
+  if (pressed != lastPressed) {
+    lastPressed = pressed;  // detecta flanco (cambio de estado)
+
+    if (pressed) {
+      rgbLedWrite(RGB_BUILTIN, 255, 255, 255);   // encender blanco
+      Serial.println("BOOT: PRESIONADO -> LED BLANCO");
+    } else {
+      rgbLedWrite(RGB_BUILTIN, 0, 0, 0);         // apagar
+      Serial.println("BOOT: SUELTO -> LED OFF");
+    }
+  }
+
+  delay(10);  // pequeño anti-rebote
+#endif
+}
+
+# EJERCICIO 7
+
+/*
+  Día 1 - Ejercicio 7 (robusto, sin BME)
+  Cada 10 s: enviar por Serial JSON con { mac, temp_c }
+  Encender LED verde 1 s al enviar.
+*/
+
+#include "esp_mac.h"   // esp_read_mac
+
+String MAC_STR;        // cache de la MAC formateada
+
+// Formatea MAC a "AA:BB:CC:DD:EE:FF" leyendo de eFuse (robusto)
+String readMacOnce() {
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);  // MAC real de la interfaz WiFi STA
+  char buf[18];
+  snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(buf);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(300);
+
+  MAC_STR = readMacOnce();  // leemos y guardamos la MAC una vez
+
+#ifdef RGB_BUILTIN
+  // Test rápido de LED
+  rgbLedWrite(RGB_BUILTIN, 0, 64, 0);
+  delay(150);
+  rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
+#endif
+
+  Serial.println("Ejercicio 7: JSON {mac, temp_c} cada 10s. LED verde 1s al enviar.");
+}
+
+void loop() {
+  // Temperatura interna del chip (°C). Nota: es del die, no ambiente.
+  float tC = temperatureRead();
+
+  // JSON minimal requerido
+  String json = String("{\"mac\":\"") + MAC_STR + "\",\"temp_c\":" + String(tC, 2) + "}";
+
+  // Enviar
+  Serial.println(json);
+
+  // LED verde 1 s como indicador
+#ifdef RGB_BUILTIN
+  rgbLedWrite(RGB_BUILTIN, 0, 255, 0);
+  delay(1000);
+  rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
+#endif
+
+  // Completar 10 s entre envíos (1 s ya usado en el LED)
+  delay(9000);
+}
+
+# parte en python
+
+import json
+import csv
+import os
+import serial
+from datetime import datetime
+
+# 👉 Ajusta tu puerto:
+PORT = "COM3"
+BAUD = 115200
+
+NDJSON_FILE = "lecturas.ndjson"
+CSV_FILE = "lecturas.csv"
+
+def ensure_csv_header(path):
+    new_file = not os.path.exists(path)
+    f = open(path, "a", newline="", encoding="utf-8")
+    writer = csv.writer(f)
+    if new_file:
+        writer.writerow(["host_ts_iso", "mac", "temp_c"])
+    return f, writer
+
+def main():
+    # abrir serie y ficheros
+    with serial.Serial(PORT, BAUD, timeout=2) as ser, \
+         open(NDJSON_FILE, "a", encoding="utf-8") as ndjson_f, \
+         ensure_csv_header(CSV_FILE)[0] as csv_f:
+
+        _, csv_writer = None, None  # para mypy; se reasigna abajo
+        csv_f, csv_writer = ensure_csv_header(CSV_FILE)
+
+        print(f"Leyendo de {PORT} @ {BAUD}. Guardando en {NDJSON_FILE} y {CSV_FILE}. Ctrl+C para salir.")
+        try:
+            while True:
+                line = ser.readline()
+                if not line:
+                    continue
+
+                try:
+                    obj = json.loads(line.decode("utf-8").strip())
+                except Exception:
+                    # Línea corrupta o incompleta; la ignoramos
+                    continue
+
+                # timestamp del PC (ISO-8601 con milisegundos y zona)
+                host_ts_iso = datetime.now().astimezone().isoformat(timespec="milliseconds")
+                obj["host_ts_iso"] = host_ts_iso
+
+                # guardar NDJSON
+                ndjson_f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+                ndjson_f.flush()
+
+                # guardar CSV
+                mac = obj.get("mac", "")
+                temp_c = obj.get("temp_c", "")
+                csv_writer.writerow([host_ts_iso, mac, temp_c])
+                csv_f.flush()
+
+                # feedback en consola
+                print(obj)
+        except KeyboardInterrupt:
+            print("\nFin (Ctrl+C).")
+        finally:
+            csv_f.close()
+
+if __name__ == "__main__":
+    main()
