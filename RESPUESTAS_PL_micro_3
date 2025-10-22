@@ -1,0 +1,188 @@
+#CODIGO SENSOR BME Y SENSOR ADA FRUIT
+
+#include <Wire.h>
+#include <Adafruit_LTR390.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
+// ===========================
+// CONFIGURACIÓN DE PINES
+// ===========================
+// LTR390 (sensor UV)
+#define UV_SDA 21
+#define UV_SCL 20
+
+// BME280 (temperatura, humedad, presión)
+#define BME_SDA 45
+#define BME_SCL 0
+
+#define RGB_BRIGHTNESS 50   // brillo máximo del LED RGB integrado
+#define LED_VERDE 2         // LED externo opcional (puede omitirse)
+
+// ===========================
+// OBJETOS DE SENSORES
+// ===========================
+Adafruit_LTR390 ltr = Adafruit_LTR390();
+Adafruit_BME280 bme;
+TwoWire WireUV = TwoWire(0);
+TwoWire WireBME = TwoWire(1);
+
+// ===========================
+// PARÁMETROS DE CALIBRACIÓN Y UMBRALES
+// ===========================
+#define FACTOR_CALIBRACION 2300.0
+
+// --- Umbrales UV ---
+const float WARNING_UVI  = 3.0;
+const float ALERT_UVI    = 6.0;
+const float CRITICAL_UVI = 8.0;
+
+// --- Umbrales ambientales ---
+const float TEMP_MAX = 35.0;   // °C
+const float TEMP_MIN = 0.0;
+const float HUM_MAX = 80.0;    // %
+const float HUM_MIN = 20.0;
+const float PRES_MIN = 980.0;  // hPa
+const float PRES_MAX = 1030.0;
+
+// Intervalo de muestreo
+const unsigned long MEASURE_INTERVAL_MS = 5000;
+unsigned long lastMillis = 0;
+
+// ===========================
+// FUNCIONES AUXILIARES
+// ===========================
+void setRGB(uint8_t r, uint8_t g, uint8_t b) {
+  rgbLedWrite(RGB_BUILTIN, r, g, b);
+}
+
+void blinkRGB(uint8_t r, uint8_t g, uint8_t b, int times, int msDelay) {
+  for (int i = 0; i < times; i++) {
+    setRGB(r, g, b);
+    delay(msDelay);
+    setRGB(0, 0, 0);
+    delay(msDelay);
+  }
+}
+
+// ===========================
+// CONFIGURACIÓN
+// ===========================
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n🌍 Inicializando sensores en buses I2C separados...");
+
+  // ---- Iniciar bus del LTR390 ----
+  WireUV.begin(UV_SDA, UV_SCL);
+  if (!ltr.begin(&WireUV)) {
+    Serial.println("❌ No se detectó LTR390. Revisa conexiones (SDA=21, SCL=20).");
+  } else {
+    Serial.println("✅ LTR390 detectado (bus UV).");
+    ltr.setMode(LTR390_MODE_UVS);
+    ltr.setGain(LTR390_GAIN_18);
+    ltr.setResolution(LTR390_RESOLUTION_20BIT);
+  }
+
+  // ---- Iniciar bus del BME280 ----
+  WireBME.begin(BME_SDA, BME_SCL);
+  if (!bme.begin(0x76, &WireBME)) {
+    Serial.println("❌ No se encontró BME280 en 0x76. Probando 0x77...");
+    if (!bme.begin(0x77, &WireBME)) {
+      Serial.println("❌ No se encontró ningún BME280 (SDA=45, SCL=0). Verifica el cableado.");
+      while (1) delay(10);
+    }
+  }
+  Serial.println("✅ BME280 inicializado correctamente (bus ambiental).\n");
+
+  // LED externo (opcional)
+  pinMode(LED_VERDE, OUTPUT);
+  digitalWrite(LED_VERDE, LOW);
+
+  setRGB(0, 0, 0);
+}
+
+// ===========================
+// BUCLE PRINCIPAL
+// ===========================
+void loop() {
+  unsigned long now = millis();
+  if (now - lastMillis < MEASURE_INTERVAL_MS) return;
+  lastMillis = now;
+
+  Serial.println("📊 ===== Nueva lectura =====");
+
+  // ====================
+  // SENSOR UV (LTR390)
+  // ====================
+  if (ltr.newDataAvailable()) {
+    uint32_t uvs = ltr.readUVS();
+    float uvi = uvs / FACTOR_CALIBRACION;
+
+    Serial.print("☀️  UVI estimado: ");
+    Serial.println(uvi, 2);
+
+    // Alarmas UV
+    if (uvi >= CRITICAL_UVI) {
+      Serial.println("⚠️ CRÍTICO: UVI extremo");
+      blinkRGB(RGB_BRIGHTNESS, 0, 0, 6, 150);
+    } else if (uvi >= ALERT_UVI) {
+      Serial.println("⚠️ ALERTA: UVI alto");
+      blinkRGB(RGB_BRIGHTNESS, RGB_BRIGHTNESS / 2, 0, 4, 300);
+    } else if (uvi >= WARNING_UVI) {
+      Serial.println("⚠️ ADVERTENCIA: UVI moderado");
+      blinkRGB(RGB_BRIGHTNESS, RGB_BRIGHTNESS, 0, 3, 400);
+    } else {
+      Serial.println("✅ UVI bajo (normal)");
+      setRGB(0, RGB_BRIGHTNESS, 0);
+      delay(1000);
+      setRGB(0, 0, 0);
+    }
+  } else {
+    Serial.println("⚠️ Sin nuevos datos UV.");
+  }
+
+  // ====================
+  // SENSOR BME280
+  // ====================
+  digitalWrite(LED_VERDE, HIGH);
+
+  float temp = bme.readTemperature();
+  float pres = bme.readPressure() / 100.0F;
+  float hum  = bme.readHumidity();
+
+  Serial.print("🌡️  Temp: ");
+  Serial.print(temp);
+  Serial.print(" °C | 💧 Humedad: ");
+  Serial.print(hum);
+  Serial.print(" % | ⛅ Presión: ");
+  Serial.print(pres);
+  Serial.println(" hPa");
+
+  bool alerta = false;
+
+  if (temp < TEMP_MIN || temp > TEMP_MAX) {
+    Serial.println("⚠️ Temperatura fuera de rango!");
+    alerta = true;
+  }
+  if (hum < HUM_MIN || hum > HUM_MAX) {
+    Serial.println("⚠️ Humedad fuera de rango!");
+    alerta = true;
+  }
+  if (pres < PRES_MIN || pres > PRES_MAX) {
+    Serial.println("⚠️ Presión fuera de rango!");
+    alerta = true;
+  }
+
+  // LED de estado ambiental
+  if (alerta) {
+    blinkRGB(RGB_BRIGHTNESS, 0, 0, 3, 300);
+  } else {
+    setRGB(0, RGB_BRIGHTNESS, 0);
+    delay(500);
+    setRGB(0, 0, 0);
+  }
+
+  digitalWrite(LED_VERDE, LOW);
+  Serial.println("=============================\n");
+}
