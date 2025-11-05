@@ -36,10 +36,10 @@ const float ALERT_UVI    = 6.0;
 const float CRITICAL_UVI = 8.0;
 
 // --- Umbrales ambientales ---
-const float TEMP_MAX = 35.0;   // °C
-const float TEMP_MIN = 0.0;
+const float TEMP_MAX = 25.0;   // °C
+const float TEMP_MIN = 15.0;
 const float HUM_MAX = 85.0;    // % 
-const float HUM_MIN = 20.0;
+const float HUM_MIN = 40.0;
 const float PRES_MIN = 980.0;  // hPa
 const float PRES_MAX = 1030.0;
 

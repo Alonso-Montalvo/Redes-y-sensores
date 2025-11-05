@@ -1,0 +1,38 @@
+#CONECTARSE A WIFI LUNARCOMMS 4 [CORRECTO]
+
+/*|----------------------------------------------------------|*/
+/*|Connection sketch to WPA/WPA2 network                     |*/
+/*|Suitable for almost any ESP32 microcontroller with WiFi   |*/
+/*|Modified for LunarComms4 network connection               |*/
+/*|----------------------------------------------------------|*/
+
+#include <WiFi.h> //Wifi library
+
+//SSID NAME and PASSWORD
+const char* ssid = "LunarComms4";
+const char* password = "11223344";
+
+void setup() {
+  Serial.begin(115200);
+  delay(10);
+  Serial.print(F("Connecting to network: "));
+  Serial.println(ssid);
+  WiFi.disconnect(true);  //disconnect from WiFi to set new WiFi connection
+  WiFi.begin(ssid, password); // Simple WPA/WPA2 connection with password
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(F("."));
+  }
+  Serial.println("");
+  Serial.println(F("WiFi is connected!"));
+  Serial.println(F("IP address set: "));
+  Serial.println(WiFi.localIP()); //print LAN IP
+}
+
+void loop() {
+  // Tu código aquí
+}
+
+
+
