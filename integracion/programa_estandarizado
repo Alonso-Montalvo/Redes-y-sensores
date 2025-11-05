@@ -1,0 +1,77 @@
+#PROGRAMA DE RECOGIDA DE DATOS ESTANDARIZADO EN FORMATO JSON
+
+CORREGIRLO PARA QUE SE VEA ASI: { "ID ": A1, 
+"Tiempo_UTC": "2025-303-14:05:30", 
+"Temperatura_C": la que sea, 
+"Humedad_%": la que sea } 
+
+/*|----------------------------------------------------------|*/
+/*|Sensor BME280 - Solo Temperatura y Humedad                |*/
+/*|Formato: "Temperatura_C": 22.5, "Humedad_%": 45.2        |*/
+/*|----------------------------------------------------------|*/
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
+// ===========================
+// CONFIGURACIÓN DE PINES BME280
+// ===========================
+#define BME_SDA 45
+#define BME_SCL 0
+
+// ===========================
+// OBJETO SENSOR
+// ===========================
+Adafruit_BME280 bme;
+TwoWire WireBME = TwoWire(1);
+
+// Intervalo de muestreo (5 segundos)
+const unsigned long MEASURE_INTERVAL_MS = 5000;
+unsigned long lastMillis = 0;
+
+// ===========================
+// CONFIGURACIÓN
+// ===========================
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n=== Sensor BME280 - Temp & Humedad ===");
+  Serial.println("Inicializando...\n");
+
+  // Iniciar bus del BME280
+  WireBME.begin(BME_SDA, BME_SCL);
+  
+  if (!bme.begin(0x76, &WireBME)) {
+    Serial.println("❌ No se encontró BME280 en 0x76. Probando 0x77...");
+    if (!bme.begin(0x77, &WireBME)) {
+      Serial.println("❌ No se encontró ningún BME280. Verifica el cableado.");
+      while (1) delay(10);
+    }
+  }
+  
+  Serial.println("✅ BME280 inicializado correctamente");
+  Serial.println("======================================\n");
+}
+
+// ===========================
+// BUCLE PRINCIPAL
+// ===========================
+void loop() {
+  unsigned long now = millis();
+  
+  // Leer cada 5 segundos
+  if (now - lastMillis < MEASURE_INTERVAL_MS) return;
+  lastMillis = now;
+
+  // Leer temperatura y humedad
+  float temp = bme.readTemperature();
+  float hum  = bme.readHumidity();
+
+  // Imprimir en el formato solicitado
+  Serial.print("\"Temperatura_C\": ");
+  Serial.print(temp, 1);
+  Serial.print(", ");
+  Serial.print("\"Humedad_%\": ");
+  Serial.println(hum, 1);
+}

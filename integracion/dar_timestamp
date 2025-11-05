@@ -1,0 +1,112 @@
+#PROGRAMA PARA DAR TU TIMESTAMP 
+/*|----------------------------------------------------------|*/
+/*|UTC Timestamp - Formato: YYYY-DDD-HH:MM:SS                |*/
+/*|Actualiza cada segundo, imprime cada 5 segundos          |*/
+/*|Formato: Año-DíaDelAño-Hora:Minuto:Segundo               |*/
+/*|----------------------------------------------------------|*/
+
+// ============================================
+// CONFIGURA LA HORA INICIAL AQUÍ (UTC)
+// ============================================
+int YEAR = 2025;
+int MONTH = 11;      // Noviembre
+int DAY = 5;
+int HOUR = 16;
+int MINUTE = 57;
+int SECOND = 00;
+// ============================================
+
+unsigned long lastSecondUpdate = 0;
+unsigned long lastPrintUpdate = 0;
+int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  
+  Serial.println("\n=== UTC TIMESTAMP PRINTER ===");
+  Serial.printf("Hora inicial: %04d-%02d-%02d %02d:%02d:%02d UTC\n", 
+                YEAR, MONTH, DAY, HOUR, MINUTE, SECOND);
+  Serial.println("==============================\n");
+  
+  lastSecondUpdate = millis();
+  lastPrintUpdate = millis();
+}
+
+bool isLeapYear(int year) {
+  return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+int getDayOfYear(int year, int month, int day) {
+  int doy = 0;
+  for (int i = 0; i < month - 1; i++) {
+    doy += daysInMonth[i];
+  }
+  doy += day;
+  if (isLeapYear(year) && month > 2) doy++;
+  return doy;
+}
+
+void incrementTime() {
+  SECOND++;
+  if (SECOND >= 60) {
+    SECOND = 0;
+    MINUTE++;
+  }
+  if (MINUTE >= 60) {
+    MINUTE = 0;
+    HOUR++;
+  }
+  if (HOUR >= 24) {
+    HOUR = 0;
+    DAY++;
+    
+    int maxDay = daysInMonth[MONTH - 1];
+    if (MONTH == 2 && isLeapYear(YEAR)) maxDay = 29;
+    
+    if (DAY > maxDay) {
+      DAY = 1;
+      MONTH++;
+      if (MONTH > 12) {
+        MONTH = 1;
+        YEAR++;
+      }
+    }
+  }
+}
+
+void loop() {
+  unsigned long now = millis();
+  
+  // Actualizar cada SEGUNDO (para no perder la pista)
+  if (now - lastSecondUpdate >= 1000) {
+    lastSecondUpdate = now;
+    incrementTime();
+  }
+  
+  // Imprimir cada 5 SEGUNDOS
+  if (now - lastPrintUpdate >= 5000) {
+    lastPrintUpdate = now;
+    
+    // Calcular día del año
+    int dayOfYear = getDayOfYear(YEAR, MONTH, DAY);
+    
+    // Formatear timestamp: YYYY-DDD-HH:MM:SS
+    char timestamp[20];
+    sprintf(timestamp, "%04d-%03d-%02d:%02d:%02d", 
+            YEAR, dayOfYear, HOUR, MINUTE, SECOND);
+    
+    // Imprimir resultado
+    Serial.print("Tiempo_UTC: \"");
+    Serial.print(timestamp);
+    Serial.println("\"");
+  }
+}
+
+#IMPRIME:
+Tiempo_UTC: "2025-309-16:57:20"
+Tiempo_UTC: "2025-309-16:57:25"
+Tiempo_UTC: "2025-309-16:57:30"
+Tiempo_UTC: "2025-309-16:57:35"
+Tiempo_UTC: "2025-309-16:57:40"
+Tiempo_UTC: "2025-309-16:57:45"
