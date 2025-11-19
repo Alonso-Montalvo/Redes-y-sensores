@@ -10,7 +10,7 @@
 // ----------------------------------------------------
 const char* ssid = "LunarComms4";
 const char* password = "11223344";
-const char* mqtt_server = "10.42.0.1";
+const char* mqtt_server = "broker.emqx.io";
 const char* mqtt_topic = "data/sensor_a1"; // Nuevo topic para los datos
 const int MQTT_QOS = 1;
 

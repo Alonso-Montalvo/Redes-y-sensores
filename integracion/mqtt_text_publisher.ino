@@ -10,7 +10,7 @@
 // ----------------------------------------------------
 const char* ssid = "LunarComms4";           [cite_start]// SSID de la red [cite: 1]
 const char* password = "11223344";       [cite_start]// Contraseña de la red [cite: 2]
-const char* mqtt_server = "10.42.0.1";      // Host del broker MQTT
+const char* mqtt_server = "broker.emqx.io";      // Host del broker MQTT
 const char* mqtt_topic = "data/sensor_a1";  // Topic para publicar los datos
 const int MQTT_QOS = 1;                     // Calidad de Servicio: 1 (At least once)
 

@@ -4,7 +4,7 @@ import time
 # -----------------
 # CONFIGURACIÓN
 # -----------------
-MQTT_BROKER = "10.42.0.1"
+MQTT_BROKER = "broker.emqx.io"
 MQTT_TOPIC = "test1"
 CLIENT_ID = "Python_Publisher"
 
