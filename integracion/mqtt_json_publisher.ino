@@ -2,12 +2,12 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h> // Necesaria para manejar JSON
 
-// --- Configuracion de WiFi y MQTT (Misma que la anterior) ---
-const char* ssid = "LunarComms4";
-const char* password = "11223344";
-const char* mqtt_server = "10.42.0.1";
+// --- Configuracion de WiFi y MQTT (¡ACTUALIZADA!) ---
+const char* ssid = "LunarLink"; // Nuevo SSID
+const char* password = "11223344"; // Nueva Contraseña
+const char* mqtt_server = "192.168.0.88"; // Nuevo Host MQTT (o "LunarComms4" si lo resuelves por DNS)
 const int mqtt_port = 1883;
-const char* mqtt_topic_publish = "sensor_data"; // Nuevo topic para JSON
+const char* mqtt_topic_publish = "sensor_data";
 const char* client_id = "ESP32_JSON_Publisher";
 
 // --- Variables ---
@@ -16,11 +16,40 @@ PubSubClient client(espClient);
 long lastMsg = 0;
 
 void setup_wifi() {
-  // ... (función setup_wifi idéntica a la anterior) ...
+  delay(10);
+  Serial.println();
+  Serial.print("Conectando a ");
+  Serial.println(ssid);
+
+  // Intentar la conexión con el nuevo SSID y Pass
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi conectada!");
+  Serial.print("Direccion IP: ");
+  Serial.println(WiFi.localIP());
 }
 
 void reconnect() {
-  // ... (función reconnect idéntica a la anterior) ...
+  // Bucle hasta que estemos reconectados
+  while (!client.connected()) {
+    Serial.print("Intentando conexion MQTT...");
+    // Intenta conectar con el client_id
+    if (client.connect(client_id)) {
+      Serial.println("conectado.");
+    } else {
+      Serial.print("fallo, rc=");
+      Serial.print(client.state());
+      Serial.println(" Intentando de nuevo en 5 segundos");
+      // Espera 5 segundos antes de reintentar
+      delay(5000);
+    }
+  }
 }
 
 // Función que simula la lectura de un sensor
@@ -37,6 +66,7 @@ float readHumidity() {
 void setup() {
   Serial.begin(115200);
   setup_wifi();
+  // Configura el servidor MQTT con la nueva IP
   client.setServer(mqtt_server, mqtt_port);
   randomSeed(analogRead(0)); // Inicializa el generador de números aleatorios
 }
@@ -56,7 +86,7 @@ void loop() {
     float hum = readHumidity();
 
     // 2. Crea el documento JSON
-    StaticJsonDocument<200> doc; // 200 bytes son suficientes para este caso
+    StaticJsonDocument<200> doc;
     doc["device_id"] = client_id;
     doc["timestamp_ms"] = now;
     doc["temp_C"] = temp;
@@ -70,6 +100,7 @@ void loop() {
     Serial.print("Publicando JSON: ");
     Serial.println(json_buffer);
     
-    client.publish(mqtt_topic_publish, json_buffer, n, false); // QoS 0
+    // CORRECCIÓN del error anterior: se usa casting para convertir char* a const uint8_t*
+    client.publish(mqtt_topic_publish, (const uint8_t*)json_buffer, n, false); // QoS 0
   }
 }
