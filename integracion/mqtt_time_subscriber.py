@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 # --- Configuracion ---
-BROKER_HOST = "broker.emqx.io"
+BROKER_HOST = "LunarComms4"
 BROKER_PORT = 1883
 TOPIC_TIME = "TimeNow"
 
