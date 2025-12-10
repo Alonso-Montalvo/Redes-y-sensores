@@ -172,45 +172,19 @@ if not df.empty:
 # Mostrar gráfica en tiempo real
 if cols and not df.empty:
     chart_data = df[cols].copy()
-    # Usar Tiempo_UTC como eje X si existe y es convertible
-    if 'Tiempo_UTC' in df.columns:
-        try:
-            chart_data['Tiempo_UTC'] = pd.to_datetime(df['Tiempo_UTC'], errors='coerce')
-            chart_data = chart_data.sort_values('Tiempo_UTC')
-            x = chart_data['Tiempo_UTC']
-        except Exception:
-            x = chart_data.index
-    else:
-        x = chart_data.index
+    x = chart_data.index  # Eje X: número de muestra, igual que en monitor_qtt.py
 
-    # Ventana de tiempo (en segundos) para mostrar en la gráfica
-    TIME_WINDOW_SECONDS = 120  # 2 minutos
-    now = pd.Timestamp.now()
-    if 'Tiempo_UTC' in chart_data.columns:
-        # Filtrar solo los datos dentro de la ventana de tiempo
-        mask = (chart_data['Tiempo_UTC'] >= now - pd.Timedelta(seconds=TIME_WINDOW_SECONDS)) & (chart_data['Tiempo_UTC'] <= now)
-        chart_data = chart_data[mask]
-        x = chart_data['Tiempo_UTC']
-    # Si no hay tiempo, no se filtra
-
-    # Etiquetas de eje Y según variable
     ylabels = {
         "Temp_C": "Temperatura (°C)",
         "Humidity_Per": "Humedad (%)",
-        "UVI": "Rayos UV (UVI)",
+        "UVI": "UVI",
         "Pressure_hPa": "Presión (hPa)"
     }
-    if len(cols) == 1:
-        ylabel = ylabels.get(cols[0], "Valor medido")
-    else:
-        ylabel = "Valor medido"
-
-    # Colores personalizados para cada variable
     color_map = {
-        "Temp_C": "#e67300",         # naranja
-        "Humidity_Per": "#0099cc",  # azul
-        "UVI": "#a020f0",           # violeta
-        "Pressure_hPa": "#228B22"   # verde
+        "Temp_C": "#e67300",
+        "Humidity_Per": "#0099cc",
+        "UVI": "#a020f0",
+        "Pressure_hPa": "#228B22"
     }
     line_widths = {
         "Temp_C": 3,
@@ -228,42 +202,16 @@ if cols and not df.empty:
                 name=ylabels.get(var, var),
                 line=dict(color=color_map.get(var, None), width=line_widths.get(var, 2))
             ))
-    # Autoscale: centrar los ejes en los datos presentes
-    if 'Tiempo_UTC' in chart_data.columns and not chart_data.empty:
-        x_vals = chart_data['Tiempo_UTC'].dropna()
-        if not x_vals.empty:
-            x_min = x_vals.min()
-            x_max = x_vals.max()
-            fig.update_layout(
-                xaxis=dict(type='date', range=[x_min, x_max], tickformat="%H:%M:%S"),
-                xaxis_title="Tiempo",
-                yaxis_title=ylabel,
-                legend_title="Variable",
-                template="simple_white",
-                height=500,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(l=40, r=20, t=40, b=40)
-            )
-        else:
-            fig.update_layout(
-                xaxis_title="Tiempo",
-                yaxis_title=ylabel,
-                legend_title="Variable",
-                template="simple_white",
-                height=500,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(l=40, r=20, t=40, b=40)
-            )
-    else:
-        fig.update_layout(
-            xaxis_title="Tiempo",
-            yaxis_title=ylabel,
-            legend_title="Variable",
-            template="simple_white",
-            height=500,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(l=40, r=20, t=40, b=40)
-        )
+    fig.update_layout(
+        xaxis_title="Muestras (tiempo)",
+        yaxis_title="Valor medido",
+        title="Lecturas en tiempo real – ID A1",
+        legend_title="Variable",
+        template="simple_white",
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=40, r=20, t=40, b=40)
+    )
     st.plotly_chart(fig, use_container_width=True)
 elif not df.empty:
     st.info("No hay datos suficientes para graficar la selección actual.")
