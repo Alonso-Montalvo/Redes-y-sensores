@@ -43,10 +43,10 @@ TwoWire I2C_LTR(1);
 // ===============================
 // WIFI / MQTT
 // ===============================
-const char* ssid = "iPhone de Alonso";
-const char* password = "12345678";
+const char* ssid = "LunarComms4";
+const char* password = "11223344";
 
-const char* mqtt_server = "broker.emqx.io";
+const char* mqtt_server = "10.42.0.1";
 const int mqtt_port = 1883;
 
 const char* TOPIC_TIME = "TimeNow";

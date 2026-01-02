@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # Constantes
-BROKER = "broker.emqx.io"
+BROKER = "10.42.0.1"
 TOPIC = "Enviromental Sensors Network"
 TARGET_ID = "A1"       # TU SENSOR (Para gráficas)
 MAX_POINTS = 100       # Puntos para gráficas
